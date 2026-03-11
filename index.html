@@ -1518,6 +1518,8 @@
         </div>
         <button class="backup-btn export-btn" onclick="exportData()">⬇ Download Backup File</button>
         <button class="csv-btn" style="margin-top:10px;width:100%" onclick="exportCSV()">📊 Export as CSV (Excel/Sheets)</button>
+        <button class="csv-btn" style="margin-top:8px;width:100%;border-color:var(--accent);color:var(--accent)" onclick="downloadSampleCSV()">📋 Download Sample CSV Template</button>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:6px;line-height:1.6">Sample includes all your current categories — edit and import to bulk-add transactions.</div>
         <div class="last-backup" id="lastBackupLabel">Last backup: <span>Never</span></div>
       </div>
 
@@ -2630,6 +2632,53 @@
     renderColourSwatches();
   }
 
+  function downloadSampleCSV() {
+    const cats = [
+      ...DEFAULT_CATS.filter(c => c !== 'Salary' && c !== 'Investment'),
+      ...customCategories.map(c => c.name)
+    ];
+    const today = new Date().toISOString().split('T')[0];
+    const pad = n => String(n).padStart(2,'0');
+    const d = new Date();
+    const m = d.getMonth()+1;
+    const y = d.getFullYear();
+    const dt = (day) => y+'-'+pad(m)+'-'+pad(day);
+
+    var lines = ['Date,Type,Description,Category,Amount,Note'];
+
+    // One income row
+    lines.push(['"'+dt(1)+'"', 'income', '"Monthly Salary"', '"Salary"', '50000', '"Replace with your salary"'].join(','));
+    // One investment row
+    lines.push(['"'+dt(2)+'"', 'investment', '"Mutual Fund SIP"', '"Investment"', '5000', '"Replace with your investment"'].join(','));
+    // One expense row per expense category
+    var day = 3;
+    cats.forEach(function(cat) {
+      lines.push(['"'+dt(day)+'"', 'expense', '"'+cat+' expense"', '"'+cat+'"', '100', '"Sample — replace with real data"'].join(','));
+      day++;
+    });
+
+    var note = [
+      '# HOW TO USE THIS FILE:',
+      '# 1. Edit the rows above with your real data',
+      '# 2. Keep Category names exactly as shown (case sensitive)',
+      '# 3. Type must be: expense / income / investment',
+      '# 4. Amount is always positive',
+      '# 5. Date format: YYYY-MM-DD',
+      '# 6. Delete these comment lines before importing',
+    ];
+
+    var blob = new Blob([lines.join('\n') + '\n\n' + note.join('\n')], {type:'text/csv;charset=utf-8;'});
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'expense-tracker-sample.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Sample CSV downloaded — edit and import!');
+  }
+
   function exportCSV() {
     const typeF  = document.getElementById('allTxType')  ? document.getElementById('allTxType').value  : 'all';
     const catF   = document.getElementById('allTxCat')   ? document.getElementById('allTxCat').value   : 'all';
@@ -2657,8 +2706,9 @@
 
     var lines = ['Date,Type,Description,Category,Amount,Note'];
     rows.forEach(function(t) {
+      // Wrap date in quotes to prevent Excel/Sheets auto-reformatting to MM-DD-YYYY
       lines.push([
-        t.date,
+        '"' + t.date + '"',
         t.type,
         '"' + (t.desc     ||'').replace(/"/g,'""') + '"',
         '"' + (t.category ||'').replace(/"/g,'""') + '"',
